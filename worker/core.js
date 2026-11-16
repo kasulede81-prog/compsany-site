@@ -1,32 +1,72 @@
-const columns={technicalLink:'technical_link',customerFollowUp:'customer_follow_up',nextAction:'next_action',dueDate:'due_date'};
+const services=[
+ {id:'Dkasu Computer Arena',slug:'computer-arena',eyebrow:'COMPUTERS & ACCESSORIES',title:'Technology for the way you work.',summary:'Explore computers and accessories through Dkasu Computer Arena.',icon:'⌘',status:'Current'},
+ {id:'DkasuPOS',slug:'pos',eyebrow:'BUSINESS SOFTWARE',title:'A point of sale experience for business.',summary:'DkasuPOS is part of our business management software offering.',icon:'▤',status:'Current'},
+ {id:'DkasuLoyalty',slug:'loyalty',eyebrow:'BUSINESS SOFTWARE',title:'Make every customer connection count.',summary:'DkasuLoyalty is part of our business management software offering.',icon:'◇',status:'Current'},
+ {id:'DkasuVision',slug:'vision',eyebrow:'CCTV SERVICES',title:'See what matters. Protect what matters.',summary:'CCTV installation services for customers in our markets.',icon:'◉',status:'Current'},
+ {id:'DkasuLogistic',slug:'logistic',eyebrow:'FUTURE SERVICE',title:'The next route forward.',summary:'Future shipping and logistics operations are in planning.',icon:'↗',status:'Future / planning'}
+];
+const defaults={heroKicker:'CONNECTED BY PURPOSE',heroTitle:'Technology, service and opportunity in motion.',heroText:'Dkasu brings computers and accessories, CCTV installation and business management software together under WAKA Marketplace Limited, serving Italy and Uganda.',heroImage:'',aboutTitle:'Built around the needs of real business.',aboutText:'Dkasu is a connected group of technology and service offerings under WAKA Marketplace Limited. Our work spans computers and accessories, CCTV installation, and business management software across Italy and Uganda.',contactTitle:'Let’s talk about what you need.',contactText:'Tell us what you are looking for and the Dkasu team can follow up.',footerText:'Dkasu is part of WAKA Marketplace Limited.',services,sections:[]};
 const recordFields=['service','kind','title','status','owner','market','notes','pricing','technicalLink','customerFollowUp','readiness','nextAction','dueDate'];
 const profileFields=['service','status','owner','notes','pricing','technicalLink','customerFollowUp','readiness'];
-const col=k=>columns[k]||k;
-const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
-const clean=(data,keys)=>Object.fromEntries(keys.map(k=>[k,String(data?.[k]??'').slice(0,5000)]));
-const page=`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dkasu Workspace</title><meta name="description" content="Private company workspace for Dkasu services in Italy and Uganda."><style>${SITE_CSS}</style></head><body><div id="app"></div><script>${SITE_JS}</script></body></html>`;
+const recCols={technicalLink:'technical_link',customerFollowUp:'customer_follow_up',nextAction:'next_action',dueDate:'due_date'};
+const itemFields=['service','name','category','summary','imageUrl','websiteUrl','status','featured','published'];
+const itemCols={imageUrl:'image_url',websiteUrl:'website_url'};
+const col=(k,map)=>map[k]||k;
+const clean=(body,fields)=>Object.fromEntries(fields.map(k=>[k,String(body?.[k]??'').slice(0,5000)]));
+const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+const html=(script)=>`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#153d32"><title>${script==='admin'?'Dkasu Admin':'Dkasu — Technology and Services'}</title><meta name="description" content="Explore Dkasu computers, accessories, CCTV installation and business management software across Italy and Uganda."><style>${SITE_CSS}</style></head><body><div id="app"></div><script>${script==='admin'?ADMIN_JS:PUBLIC_JS}</script></body></html>`;
+const admin=(req,env)=>{const email=req.headers.get('oai-authenticated-user-email');return !!email&&!!env.ADMIN_EMAIL&&email.trim().toLowerCase()===String(env.ADMIN_EMAIL).trim().toLowerCase()};
+const deny=()=>json({error:'Admin access required'},403);
+const content=async db=>{const row=await db.prepare("SELECT value FROM public_content WHERE key='site'").first();try{return {...defaults,...JSON.parse(row?.value||'{}')}}catch{return defaults}};
+const publicData=async db=>{const [site,items]=await Promise.all([content(db),db.prepare('SELECT id,service,name,category,summary,image_url AS imageUrl,website_url AS websiteUrl,status,featured,published,updated_at AS updatedAt FROM catalog_items WHERE published=1 ORDER BY featured DESC,updated_at DESC').all()]);return {site,items:items.results}};
+const adminData=async db=>{const [site,items,records,profiles,inquiries]=await Promise.all([
+ content(db),db.prepare('SELECT id,service,name,category,summary,image_url AS imageUrl,website_url AS websiteUrl,status,featured,published,updated_at AS updatedAt FROM catalog_items ORDER BY updated_at DESC').all(),
+ db.prepare('SELECT id,service,kind,title,status,owner,market,notes,pricing,technical_link AS technicalLink,customer_follow_up AS customerFollowUp,readiness,next_action AS nextAction,due_date AS dueDate,updated_at AS updatedAt FROM records ORDER BY updated_at DESC').all(),
+ db.prepare('SELECT service,status,owner,notes,pricing,technical_link AS technicalLink,customer_follow_up AS customerFollowUp,readiness,updated_at AS updatedAt FROM service_profiles').all(),
+ db.prepare('SELECT id,name,email,interest,market,message,status,owner,follow_up AS followUp,created_at AS createdAt,updated_at AS updatedAt FROM inquiries ORDER BY created_at DESC').all()]);
+ return {site,items:items.results,records:records.results,profiles:profiles.results,inquiries:inquiries.results};};
+const validUrl=value=>!value||/^https:\/\//i.test(value);
 export default {async fetch(request,env){
- const url=new URL(request.url);
- if(url.pathname==='/' || url.pathname==='/index.html')return new Response(page,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
- if(url.pathname!=='/api/workspace')return new Response('Not found',{status:404});
+ const url=new URL(request.url),path=url.pathname;
+ if(path==='/'||path.startsWith('/services/')||path==='/products'||path==='/about'||path==='/contact')return new Response(html('public'),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
+ if(path==='/admin')return new Response(admin(request,env)?html('admin'):`<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dkasu Admin</title><style>${SITE_CSS}</style><main class="auth-page"><div class="auth-card"><a href="/" class="wordmark">D<span>·</span>kasu</a><p class="kicker">ADMIN WORKSPACE</p><h1>${request.headers.get('oai-authenticated-user-email')?'Access restricted':'Sign in to manage Dkasu'}</h1><p>${request.headers.get('oai-authenticated-user-email')?'This account is not configured as the Dkasu administrator.':'Use the Dkasu administrator account to edit the site and company records.'}</p>${request.headers.get('oai-authenticated-user-email')?'':`<a class="primary-btn" href="/signin-with-chatgpt?return_to=%2Fadmin" target="_top">Sign in with ChatGPT →</a>`}<a class="text-link" href="/">Return to website</a></div></main>`,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
  if(!env.DB)return json({error:'Database unavailable'},500);
  try{
-  if(request.method==='GET'){
-   const [records,profiles]=await Promise.all([
-    env.DB.prepare('SELECT id,service,kind,title,status,owner,market,notes,pricing,technical_link AS technicalLink,customer_follow_up AS customerFollowUp,readiness,next_action AS nextAction,due_date AS dueDate,updated_at AS updatedAt FROM records ORDER BY updated_at DESC').all(),
-    env.DB.prepare('SELECT service,status,owner,notes,pricing,technical_link AS technicalLink,customer_follow_up AS customerFollowUp,readiness,updated_at AS updatedAt FROM service_profiles').all()
-   ]);return json({records:records.results,profiles:profiles.results});
+ if(path==='/api/public'&&request.method==='GET')return json(await publicData(env.DB));
+ if(path==='/api/inquiries'&&request.method==='POST'){
+  const body=await request.json();if(body.website)return json({ok:true});
+  const name=String(body.name||'').trim().slice(0,120),email=String(body.email||'').trim().slice(0,200),message=String(body.message||'').trim().slice(0,2000),interest=String(body.interest||'').slice(0,100),market=String(body.market||'').slice(0,50);
+  if(!name||!/^\S+@\S+\.\S+$/.test(email)||message.length<10)return json({error:'Please add your name, a valid email and a message of at least 10 characters.'},400);
+  await env.DB.prepare('INSERT INTO inquiries (id,name,email,interest,market,message,status,owner,follow_up,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),name,email,interest,market,message,'New','','',Date.now(),Date.now()).run();return json({ok:true});
+ }
+ if(path.startsWith('/api/admin/')){
+  if(!admin(request,env))return deny();
+  if(path==='/api/admin/data'&&request.method==='GET')return json(await adminData(env.DB));
+  if(path==='/api/admin/content'&&request.method==='POST'){
+   const body=await request.json();const next={...defaults,...body};
+   next.services=services.map(s=>{const edit=(Array.isArray(body.services)?body.services:[]).find(x=>x.id===s.id)||{};return {...s,title:String(edit.title||s.title).slice(0,120),summary:String(edit.summary||s.summary).slice(0,500),websiteUrl:validUrl(edit.websiteUrl)?String(edit.websiteUrl||'').slice(0,500):''}});
+   next.sections=Array.isArray(body.sections)?body.sections.slice(0,12).map(x=>({id:String(x.id||crypto.randomUUID()),title:String(x.title||'').slice(0,120),text:String(x.text||'').slice(0,1000)})):[];
+   for(const key of ['heroKicker','heroTitle','heroText','heroImage','aboutTitle','aboutText','contactTitle','contactText','footerText'])next[key]=String(body[key]??defaults[key]).slice(0,2000);
+   if(!validUrl(next.heroImage))next.heroImage='';
+   await env.DB.prepare("INSERT INTO public_content (key,value,updated_at) VALUES ('site',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(JSON.stringify(next),Date.now()).run();return json({ok:true});
   }
-  if(request.method==='POST'){
-   const body=await request.json();const isProfile=body.type==='profile';const fields=isProfile?profileFields:recordFields;const v=clean(body,fields);
-   if(!v.service||(!isProfile&&(!v.title||!v.kind)))return json({error:'Required fields missing'},400);
-   if(isProfile&&v.service==='DkasuLogistic')v.status='Future / planning';
-   const cols=fields.map(col),values=fields.map(k=>v[k]);
-   if(isProfile){await env.DB.prepare(`INSERT INTO service_profiles (${cols.join(',')},updated_at) VALUES (${cols.map(()=>'?').join(',')},?) ON CONFLICT(service) DO UPDATE SET ${cols.slice(1).map(k=>`${k}=excluded.${k}`).join(',')},updated_at=excluded.updated_at`).bind(...values,Date.now()).run();return json({ok:true});}
-   const id=String(body.id||crypto.randomUUID());
-   await env.DB.prepare(`INSERT INTO records (id,${cols.join(',')},updated_at) VALUES (?,${cols.map(()=>'?').join(',')},?) ON CONFLICT(id) DO UPDATE SET ${cols.map(k=>`${k}=excluded.${k}`).join(',')},updated_at=excluded.updated_at`).bind(id,...values,Date.now()).run();return json({ok:true,id});
+  if(path==='/api/admin/items'&&request.method==='POST'){
+   const body=await request.json(),v=clean(body,itemFields);if(!v.name||!v.service)return json({error:'Name and service required'},400);if(!validUrl(v.websiteUrl)||!validUrl(v.imageUrl))return json({error:'Links must start with https://'},400);
+   const id=String(body.id||crypto.randomUUID());const cols=itemFields.map(k=>col(k,itemCols));const values=itemFields.map(k=>k==='featured'||k==='published'?(body[k]?1:0):v[k]);
+   await env.DB.prepare(`INSERT INTO catalog_items (id,${cols.join(',')},updated_at) VALUES (?,${cols.map(()=>'?').join(',')},?) ON CONFLICT(id) DO UPDATE SET ${cols.map(k=>`${k}=excluded.${k}`).join(',')},updated_at=excluded.updated_at`).bind(id,...values,Date.now()).run();return json({ok:true,id});
   }
-  if(request.method==='DELETE'){const id=url.searchParams.get('id');if(!id)return json({error:'ID required'},400);await env.DB.prepare('DELETE FROM records WHERE id=?').bind(id).run();return json({ok:true});}
-  return json({error:'Method not allowed'},405);
+  if(path==='/api/admin/items'&&request.method==='DELETE'){const id=url.searchParams.get('id');if(!id)return json({error:'ID required'},400);await env.DB.prepare('DELETE FROM catalog_items WHERE id=?').bind(id).run();return json({ok:true});}
+  if(path==='/api/admin/inquiries'&&request.method==='POST'){const b=await request.json();if(!b.id)return json({error:'ID required'},400);await env.DB.prepare('UPDATE inquiries SET status=?,owner=?,follow_up=?,updated_at=? WHERE id=?').bind(String(b.status||'New').slice(0,50),String(b.owner||'').slice(0,120),String(b.followUp||'').slice(0,1000),Date.now(),String(b.id)).run();return json({ok:true});}
+  if(path==='/api/admin/records'&&request.method==='POST'){
+   const b=await request.json(),v=clean(b,recordFields);if(!v.service||!v.kind||!v.title)return json({error:'Service, type and title required'},400);const id=String(b.id||crypto.randomUUID());const cols=recordFields.map(k=>col(k,recCols)),values=recordFields.map(k=>v[k]);await env.DB.prepare(`INSERT INTO records (id,${cols.join(',')},updated_at) VALUES (?,${cols.map(()=>'?').join(',')},?) ON CONFLICT(id) DO UPDATE SET ${cols.map(k=>`${k}=excluded.${k}`).join(',')},updated_at=excluded.updated_at`).bind(id,...values,Date.now()).run();return json({ok:true,id});
+  }
+  if(path==='/api/admin/records'&&request.method==='DELETE'){const id=url.searchParams.get('id');if(!id)return json({error:'ID required'},400);await env.DB.prepare('DELETE FROM records WHERE id=?').bind(id).run();return json({ok:true});}
+  if(path==='/api/admin/profiles'&&request.method==='POST'){
+   const b=await request.json(),v=clean(b,profileFields);if(!v.service)return json({error:'Service required'},400);if(v.service==='DkasuLogistic')v.status='Future / planning';const cols=profileFields.map(k=>col(k,recCols)),values=profileFields.map(k=>v[k]);await env.DB.prepare(`INSERT INTO service_profiles (${cols.join(',')},updated_at) VALUES (${cols.map(()=>'?').join(',')},?) ON CONFLICT(service) DO UPDATE SET ${cols.slice(1).map(k=>`${k}=excluded.${k}`).join(',')},updated_at=excluded.updated_at`).bind(...values,Date.now()).run();return json({ok:true});
+  }
+  return json({error:'Not found'},404);
+ }
+ // The prior private workspace endpoint is retired so public visitors cannot read internal records.
+ return json({error:'Not found'},404);
  }catch(error){return json({error:String(error)},500);}
 }};
