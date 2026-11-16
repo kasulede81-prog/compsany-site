@@ -17,7 +17,20 @@ const col=(k,map)=>map[k]||k;
 const clean=(body,fields)=>Object.fromEntries(fields.map(k=>[k,String(body?.[k]??'').slice(0,5000)]));
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 const html=(script)=>`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${script==='admin'?'<meta name="robots" content="noindex,nofollow">':''}<meta name="theme-color" content="#fffaf5"><link rel="icon" href="${SITE_ICON}"><title>${script==='admin'?'Dkasu Admin':'Dkasu — Computers, Software & CCTV'}</title><meta name="description" content="Explore brand new, UK used and Dubai used computers and accessories, CCTV installation and business software from Dkasu."><style>${SITE_CSS}</style></head><body><div id="app"></div><script>const SITE_LOGO_LIGHT=${JSON.stringify(SITE_LOGO_LIGHT)},SITE_LOGO_DARK=${JSON.stringify(SITE_LOGO_DARK)},SITE_ICON=${JSON.stringify(SITE_ICON)};${script==='admin'?ADMIN_JS:PUBLIC_JS}</script></body></html>`;
-const admin=(req,env)=>{const email=req.headers.get('oai-authenticated-user-email');return !!email&&!!env.ADMIN_EMAIL&&email.trim().toLowerCase()===String(env.ADMIN_EMAIL).trim().toLowerCase()};
+const POS_COOKIE='dkasu_pos_admin';
+const posToken=req=>{const part=(req.headers.get('cookie')||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(POS_COOKIE+'='));return part?part.slice(POS_COOKIE.length+1):''};
+const posAdmin=async(token,env)=>{
+ if(!token||token.length>8192||!/^[-\w]+\.[-\w]+\.[-\w]+$/.test(token)||!env.POS_SUPABASE_URL||!env.POS_SUPABASE_ANON_KEY)return false;
+ try{
+  const endpoint=new URL('/rest/v1/rpc/waka_internal_me',env.POS_SUPABASE_URL);
+  if(endpoint.protocol!=='https:')return false;
+  const response=await fetch(endpoint,{method:'POST',headers:{apikey:env.POS_SUPABASE_ANON_KEY,authorization:'Bearer '+token,'content-type':'application/json'},body:'{}',signal:AbortSignal.timeout(5000)});
+  if(!response.ok)return false;
+  const rows=await response.json();
+  return Array.isArray(rows)&&rows.some(row=>row?.active===true&&['super_admin','operations_admin'].includes(row.role));
+ }catch{return false}
+};
+const admin=async(req,env)=>{const email=req.headers.get('oai-authenticated-user-email');if(email&&env.ADMIN_EMAIL&&email.trim().toLowerCase()===String(env.ADMIN_EMAIL).trim().toLowerCase())return true;return posAdmin(posToken(req),env)};
 const deny=()=>json({error:'Admin access required'},403);
 const content=async db=>{const row=await db.prepare("SELECT value FROM public_content WHERE key='site'").first();try{const saved=JSON.parse(row?.value||'{}'),next={...defaults,...saved};for(const [key,old] of Object.entries(legacyCopy))if(next[key]===old)next[key]=defaults[key];if(next.heroText==='Explore brand new, UK used and Dubai used computers and accessories, CCTV installation, and business software from Dkasu in Italy and Uganda.')next.heroText=defaults.heroText;if(next.aboutText==='Dkasu connects computer sales, CCTV installation and business software. Our work spans Italy and Uganda, with each service focused on practical technology needs.')next.aboutText=defaults.aboutText;next.services=services.map(s=>{const edit=(Array.isArray(saved.services)?saved.services:[]).find(x=>x.id===s.id)||{},old=legacyServices[s.id];return {...s,...edit,title:edit.title&&edit.title!==old?.[0]?edit.title:s.title,summary:edit.summary&&edit.summary!==old?.[1]?edit.summary:s.summary,websiteUrl:saved.linksVersion?edit.websiteUrl??s.websiteUrl:edit.websiteUrl||s.websiteUrl,eyebrow:s.eyebrow,icon:s.icon,status:s.status};});return next}catch{return defaults}};
 const publicData=async db=>{const [site,items]=await Promise.all([content(db),db.prepare('SELECT id,service,name,category,condition,summary,image_url AS imageUrl,website_url AS websiteUrl,status,featured,published,updated_at AS updatedAt FROM catalog_items WHERE published=1 ORDER BY featured DESC,updated_at DESC').all()]);return {site,items:items.results}};
@@ -31,7 +44,12 @@ const validUrl=value=>!value||/^https:\/\//i.test(value);
 export default {async fetch(request,env){
  const url=new URL(request.url),path=url.pathname;
  if(path==='/'||path.startsWith('/services/')||path==='/products'||path==='/about'||path==='/contact')return new Response(html('public'),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
- if(path==='/admin')return new Response(admin(request,env)?html('admin'):`<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dkasu Admin</title><meta name="robots" content="noindex,nofollow"><style>${SITE_CSS}</style><main class="auth-page"><div class="auth-card"><a href="/" class="wordmark">D<span>·</span>kasu</a><p class="kicker">ADMIN WORKSPACE</p><h1>${request.headers.get('oai-authenticated-user-email')?'Access restricted':'Sign in to manage Dkasu'}</h1><p>${request.headers.get('oai-authenticated-user-email')?'This account is not configured as the Dkasu administrator.':'Use the Dkasu administrator account to edit the site and company records.'}</p>${request.headers.get('oai-authenticated-user-email')?'':`<a class="primary-btn" href="/signin-with-chatgpt?return_to=%2Fadmin" target="_top">Sign in with ChatGPT →</a>`}<a class="text-link" href="/">Return to website</a></div></main>`,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex, nofollow'}});
+ if(path==='/admin/pos-login'&&request.method==='POST'){
+  const form=await request.formData(),token=String(form.get('access_token')||'');
+  if(!await posAdmin(token,env))return new Response('DkasuPOS administrator access could not be verified. Return to DkasuPOS and try again.',{status:403,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex, nofollow'}});
+  return new Response(null,{status:303,headers:{location:'/admin','set-cookie':`${POS_COOKIE}=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=3600`,'cache-control':'no-store','x-robots-tag':'noindex, nofollow'}});
+ }
+ if(path==='/admin')return new Response(await admin(request,env)?html('admin'):`<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dkasu Admin</title><meta name="robots" content="noindex,nofollow"><style>${SITE_CSS}</style><main class="auth-page"><div class="auth-card"><a href="/" class="wordmark">D<span>·</span>kasu</a><p class="kicker">ADMIN WORKSPACE</p><h1>${request.headers.get('oai-authenticated-user-email')?'Access restricted':'Sign in to manage Dkasu'}</h1><p>${request.headers.get('oai-authenticated-user-email')?'This account is not configured as the Dkasu administrator.':'Open this dashboard from the DkasuPOS admin menu, or sign in with the Dkasu administrator ChatGPT account.'}</p>${request.headers.get('oai-authenticated-user-email')?'':`<a class="primary-btn" href="/signin-with-chatgpt?return_to=%2Fadmin" target="_top">Sign in with ChatGPT →</a>`}<a class="text-link" href="/">Return to website</a></div></main>`,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex, nofollow'}});
  if(!env.DB)return json({error:'Database unavailable'},500);
  try{
  if(path==='/api/public'&&request.method==='GET')return json(await publicData(env.DB));
@@ -42,7 +60,8 @@ export default {async fetch(request,env){
   await env.DB.prepare('INSERT INTO inquiries (id,name,email,interest,market,message,status,owner,follow_up,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),name,email,interest,market,message,'New','','',Date.now(),Date.now()).run();return json({ok:true});
  }
  if(path.startsWith('/api/admin/')){
-  if(!admin(request,env))return deny();
+  if(!await admin(request,env))return deny();
+  if(request.method!=='GET'){const origin=request.headers.get('origin');if(origin&&origin!==url.origin)return deny();}
   if(path==='/api/admin/data'&&request.method==='GET')return json(await adminData(env.DB));
   if(path==='/api/admin/content'&&request.method==='POST'){
    const body=await request.json();const next={...defaults,...body};
