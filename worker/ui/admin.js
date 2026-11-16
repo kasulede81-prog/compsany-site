@@ -1,4 +1,4 @@
-const serviceIds=['Dkasu Computer Arena','DkasuPOS','DkasuLoyalty','DkasuVision','DkasuLogistic'];
+const serviceIds=['Dkasu Computer Arena','DkasuPOS','DkasuLoyalty','DkasuVision','DkasuLogistic','Dkasu Global','Dkasu Digital'];
 const kinds=['Product','Software feature','Service package','Customer request','Sales lead','Installation','Subscription','Logistics idea','Team responsibility','Marketing content','Company information','Next action'];
 const statuses=['Idea','Planning','In progress','Ready','Active','Waiting','Completed','On hold'];
 const readiness=['Not started','Needs definition','In progress','Ready for launch','Ready for delivery','Delivered'];

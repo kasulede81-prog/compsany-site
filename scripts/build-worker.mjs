@@ -1,11 +1,2 @@
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-const root=process.cwd();
-const css=readFileSync(path.join(root,'worker/ui/style.css'),'utf8');
-const publicJs=readFileSync(path.join(root,'worker/ui/public.js'),'utf8');
-const adminJs=readFileSync(path.join(root,'worker/ui/admin.js'),'utf8');
-const core=readFileSync(path.join(root,'worker/core.js'),'utf8');
-const asset = name => `data:image/png;base64,${readFileSync(path.join(root,'worker/assets',name)).toString('base64')}`;
-mkdirSync(path.join(root,'dist/server'),{recursive:true});
-writeFileSync(path.join(root,'dist/server/index.js'),`const SITE_CSS=${JSON.stringify(css)};\nconst SITE_LOGO_LIGHT=${JSON.stringify(asset('dkasu-logo-light.png'))};\nconst SITE_LOGO_DARK=${JSON.stringify(asset('dkasu-logo-dark.png'))};\nconst SITE_ICON=${JSON.stringify(asset('dkasu-icon.png'))};\nconst PUBLIC_JS=${JSON.stringify(publicJs)};\nconst ADMIN_JS=${JSON.stringify(adminJs)};\n${core}`);
-console.log('Built Dkasu portfolio and admin dashboard');
+/** Legacy Cloudflare bundle builder — delegates to build-company.mjs. */
+import './build-company.mjs';

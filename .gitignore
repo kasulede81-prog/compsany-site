@@ -14,6 +14,7 @@
 /.next/
 /.vinext/
 /out/
+/server/generated-assets.mjs
 next-env.d.ts
 *.tsbuildinfo
 
@@ -26,10 +27,16 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Local environment and keys
-.env*
+# Local environment and keys (keep tracked placeholder example)
+.env
+.env.*
+!.env.example
+.dev.vars
 .dev.vars*
 *.pem
+
+# Vercel local project link / cache
+.vercel
 
 # Checkout-local tool state
 /.wrangler/

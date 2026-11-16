@@ -1,16 +1,23 @@
 {
-  "name": "site-creator-vinext-starter",
+  "name": "dkasu-company-site",
   "version": "0.1.0",
   "private": true,
+  "description": "DKASU company website (Vercel + Supabase)",
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
     "install:ci": "node scripts/install-ci.mjs",
-    "dev": "node scripts/run-framework.mjs dev",
-    "build": "node scripts/run-framework.mjs build",
-    "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "dev": "npm run build && node scripts/dev-company.mjs",
+    "dev:company": "npm run build && node scripts/dev-company.mjs",
+    "dev:cloudflare-legacy": "node scripts/run-framework.mjs dev",
+    "build": "node scripts/build-company.mjs",
+    "build:cloudflare-legacy": "node scripts/build-worker.mjs",
+    "start": "npm run dev:company",
+    "test": "npm run build && node scripts/test-company-runtime.mjs",
+    "verify:secrets": "node scripts/verify-company-secrets.mjs",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern server/generated-assets.mjs",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
