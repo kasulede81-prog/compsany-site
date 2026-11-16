@@ -41,6 +41,7 @@ export const catalogItems = sqliteTable("catalog_items", {
   service: text("service").notNull(),
   name: text("name").notNull(),
   category: text("category").notNull().default(""),
+  condition: text("condition").notNull().default(""),
   summary: text("summary").notNull().default(""),
   imageUrl: text("image_url").notNull().default(""),
   websiteUrl: text("website_url").notNull().default(""),
