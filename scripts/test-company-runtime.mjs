@@ -82,9 +82,11 @@ await checkAsync('homepage SEO title and organization graph', async () => {
     },
   });
   const body = await res.text();
-  assert.match(body, /<title>DKASU \| Business Software, Computers &amp; IT Solutions<\/title>|<title>DKASU \| Business Software, Computers & IT Solutions<\/title>/);
+  assert.match(body, /<title>DKASU \| Business Software, POS Systems &amp; IT Solutions Uganda<\/title>|<title>DKASU \| Business Software, POS Systems & IT Solutions Uganda<\/title>/);
   assert.match(body, /Waka Marketplace Limited/);
   assert.match(body, /https:\/\/www\.dkasu\.com\/#organization/);
+  assert.match(body, /https:\/\/pos\.dkasu\.com\/#software/);
+  assert.match(body, /"@type":"SoftwareApplication"/);
   assert.match(body, /Denis Kasule/);
   assert.match(body, /foundingDate":"2025-12"/);
   assert.doesNotMatch(body, /vision\.dkasu\.com/);
@@ -136,6 +138,7 @@ await checkAsync('www canonical consistency across SEO surfaces', async () => {
   assert.match(robotsTxt(), /Sitemap: https:\/\/www\.dkasu\.com\/sitemap\.xml/);
   const graph = JSON.stringify(organizationGraph());
   assert.match(graph, /https:\/\/www\.dkasu\.com\/#organization/);
+  assert.match(graph, /https:\/\/pos\.dkasu\.com\/#software/);
   assert.match(graph, /kasule-denis-6395b3373/);
   assert.doesNotMatch(graph, /facebook\.com|instagram\.com|twitter\.com|x\.com/);
   const vercel = await import('node:fs').then((fs) =>

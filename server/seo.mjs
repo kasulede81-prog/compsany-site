@@ -48,16 +48,16 @@ export const BRAND = {
 export const PUBLIC_PAGES = [
   {
     path: '/',
-    title: 'DKASU | Business Software, Computers & IT Solutions',
+    title: 'DKASU | Business Software, POS Systems & IT Solutions Uganda',
     description:
-      'DKASU provides POS software, computers, IT services and digital business solutions in Uganda, with an office in Rome, Italy. Explore our technology brands.',
+      'DKASU provides POS software, inventory management, computers, website development and IT solutions for businesses in Uganda.',
     breadcrumbs: [{ name: 'Home', path: '/' }],
   },
   {
     path: '/products',
-    title: 'Products & Services | DKASU',
+    title: 'Products & Services | DKASU Computers, POS & IT',
     description:
-      'Explore DKASU products and services — computers and accessories, POS software, loyalty tools, CCTV installation, and more.',
+      'Explore DKASU Computer Arena, DKASU POS, loyalty tools, CCTV installation, logistics and digital services for Ugandan businesses.',
     breadcrumbs: [
       { name: 'Home', path: '/' },
       { name: 'Products', path: '/products' },
@@ -65,9 +65,9 @@ export const PUBLIC_PAGES = [
   },
   {
     path: '/about',
-    title: 'About DKASU | Waka Marketplace Limited',
+    title: 'About DKASU | Software, Computers & Waka Marketplace Limited',
     description:
-      'DKASU is the commercial brand of Waka Marketplace Limited. Learn about our businesses, leadership, and offices in Uganda and Italy.',
+      'DKASU is the commercial brand of Waka Marketplace Limited — business software, computers, digital services and IT solutions in Uganda and Italy.',
     breadcrumbs: [
       { name: 'Home', path: '/' },
       { name: 'Company', path: '/about' },
@@ -77,7 +77,7 @@ export const PUBLIC_PAGES = [
     path: '/contact',
     title: 'Contact DKASU | Uganda & Italy',
     description:
-      'Contact DKASU in Kampala, Uganda or Rome, Italy — WhatsApp, email, or enquiry form for computers, software, and IT services.',
+      'Contact DKASU in Kampala, Uganda or Rome, Italy — WhatsApp, email, or enquiry form for computers, POS software, and IT services.',
     breadcrumbs: [
       { name: 'Home', path: '/' },
       { name: 'Contact', path: '/contact' },
@@ -87,32 +87,38 @@ export const PUBLIC_PAGES = [
 
 const SERVICE_SEO = {
   'computer-arena': {
-    title: 'DKASU Computers | Computer Arena',
+    title: 'DKASU Computers | Computer Arena Uganda',
     description:
-      'Shop brand new, UK used and Dubai used computers and accessories through DKASU Computer Arena.',
+      'Shop refurbished and new laptops, desktops and computer accessories in Uganda through DKASU Computer Arena — computer.dkasu.com.',
     name: 'DKASU Computer Arena',
   },
   pos: {
-    title: 'DKASU POS | Business Software',
-    description: 'DKASU POS — point of sale and business management software for growing businesses.',
+    title: 'DKASU POS | Offline Business Management Software Uganda',
+    description:
+      'DKASU POS is offline-first POS software for retail, restaurants, pharmacies and supermarkets — sales, inventory, staff, reporting and loyalty.',
     name: 'DKASU POS',
   },
   loyalty: {
-    title: 'DKASU Loyalty | Customer Engagement',
-    description: 'DKASU Loyalty — loyalty software for customer engagement.',
+    title: 'DKASU Loyalty | Customer Engagement Software',
+    description:
+      'DKASU Loyalty helps businesses stay connected to customers with digital loyalty tools that integrate with DKASU POS.',
     name: 'DKASU Loyalty',
   },
   vision: {
-    title: 'DKASU Vision | CCTV Installation',
-    description: 'DKASU Vision — CCTV installation services for homes and businesses.',
+    title: 'DKASU Vision | CCTV Installation Uganda',
+    description: 'DKASU Vision provides CCTV installation services for homes and businesses in Uganda.',
     name: 'DKASU Vision',
   },
   logistic: {
     title: 'DKASU Logistic | Shipping & Logistics',
-    description: 'DKASU Logistic — shipping and logistics services.',
+    description: 'DKASU Logistic provides shipping and logistics services for business movement needs.',
     name: 'DKASU Logistic',
   },
 };
+
+/** Verified product host — do not invent additional storefronts here. */
+export const POS_PRODUCT_URL = 'https://pos.dkasu.com';
+export const COMPUTER_PRODUCT_URL = 'https://computer.dkasu.com';
 
 export function absoluteUrl(pathname = '/') {
   if (!pathname || pathname === '/') return `${SITE_ORIGIN}/`;
@@ -220,7 +226,55 @@ export function organizationGraph() {
         publisher: { '@id': orgId },
         inLanguage: 'en',
       },
+      softwareApplicationNode(),
+      computerStoreNode(),
     ],
+  };
+}
+
+/**
+ * Flagship product schema — references corporate Organization via provider @id.
+ * No invent ratings, reviews, or unverified launch dates.
+ */
+export function softwareApplicationNode() {
+  return {
+    '@type': 'SoftwareApplication',
+    '@id': `${POS_PRODUCT_URL}/#software`,
+    name: 'DKASU POS',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web, Android',
+    url: POS_PRODUCT_URL,
+    description:
+      'DKASU POS is a business management platform for retailers, restaurants, pharmacies, supermarkets and growing businesses — sales, inventory, customers, staff, reporting and receipt printing in one connected offline-first system.',
+    provider: { '@id': `${SITE_ORIGIN}/#organization` },
+    author: { '@id': `${SITE_ORIGIN}/#founder` },
+    isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'UGX',
+      url: POS_PRODUCT_URL,
+    },
+  };
+}
+
+/**
+ * Computers division storefront — references corporate Organization via parentOrganization @id.
+ * Mirrors computer.dkasu.com/#store; no invent ratings, branches, or stock counts.
+ */
+export function computerStoreNode() {
+  return {
+    '@type': 'ComputerStore',
+    '@id': `${COMPUTER_PRODUCT_URL}/#store`,
+    name: 'DKASU Computer Arena',
+    url: COMPUTER_PRODUCT_URL,
+    parentOrganization: { '@id': `${SITE_ORIGIN}/#organization` },
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: 'Kampala',
+      addressCountry: 'UG',
+    },
+    areaServed: { '@type': 'Country', name: 'Uganda' },
   };
 }
 

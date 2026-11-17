@@ -20,8 +20,8 @@ import {
 } from './seo.mjs';
 
 const services = [
-  { id: 'Dkasu Computer Arena', slug: 'computer-arena', eyebrow: 'COMPUTERS & ACCESSORIES', title: 'Computers for every next step.', summary: 'Shop brand new, UK used and Dubai used computers and accessories.', icon: 'monitor', status: 'Current', websiteUrl: 'https://computer.dkasu.com' },
-  { id: 'DkasuPOS', slug: 'pos', eyebrow: 'BUSINESS SOFTWARE', title: 'Run your business with clarity.', summary: 'Point of sale and business management software.', icon: 'panels', status: 'Current', websiteUrl: 'https://pos.dkasu.com' },
+  { id: 'Dkasu Computer Arena', slug: 'computer-arena', eyebrow: 'COMPUTERS & ACCESSORIES', title: 'Computers for every next step.', summary: 'Shop refurbished and new laptops, desktops and computer accessories through DKASU Computer Arena.', icon: 'monitor', status: 'Current', websiteUrl: 'https://computer.dkasu.com' },
+  { id: 'DkasuPOS', slug: 'pos', eyebrow: 'BUSINESS SOFTWARE', title: 'DKASU POS — run your business with clarity.', summary: 'Offline-first POS and business management for retail, restaurants, pharmacies and supermarkets — sales, inventory, staff, reporting and loyalty.', icon: 'panels', status: 'Current', websiteUrl: 'https://pos.dkasu.com' },
   { id: 'DkasuLoyalty', slug: 'loyalty', eyebrow: 'BUSINESS SOFTWARE', title: 'Stay connected to your customers.', summary: 'Loyalty software for customer engagement.', icon: 'gift', status: 'Current', websiteUrl: 'https://loyalty.dkasu.com' },
   // No independent website confirmed for Vision — omit websiteUrl until verified.
   { id: 'DkasuVision', slug: 'vision', eyebrow: 'CCTV SERVICES', title: 'A clearer view of what matters.', summary: 'CCTV installation services for homes and businesses.', icon: 'camera', status: 'Current', websiteUrl: '' },
@@ -31,12 +31,12 @@ const services = [
 ];
 const publicServiceIds = new Set(['Dkasu Computer Arena', 'DkasuPOS', 'DkasuLoyalty', 'DkasuVision', 'DkasuLogistic']);
 const defaults = {
-  heroKicker: 'DKASU TECHNOLOGY & SERVICES',
-  heroTitle: 'The right technology. A better way forward.',
-  heroText: 'DKASU provides POS software, computers, IT services and digital business solutions in Uganda, with a contact location in Rome, Italy. Explore our technology brands.',
+  heroKicker: 'DKASU SOFTWARE & BUSINESS SOLUTIONS',
+  heroTitle: 'Business software, computers and IT for Uganda.',
+  heroText: 'DKASU develops practical technology for shops and growing businesses — POS software, computers, website development and IT services — with a contact location in Rome, Italy.',
   heroImage: '',
   aboutTitle: 'Technology for people and business.',
-  aboutText: 'DKASU is the commercial brand of Waka Marketplace Limited. We connect computer sales, CCTV installation, business software and related services across Uganda and Italy.',
+  aboutText: 'DKASU is the commercial brand of Waka Marketplace Limited. We deliver business software and POS systems, computer hardware and IT services, website development, digital loyalty tools and related technology services across Uganda and Italy.',
   contactTitle: 'What can we help you find?',
   contactText: 'Tell us what you need and the DKASU team can follow up.',
   contactWhatsApp: '+256 765 146 177',
