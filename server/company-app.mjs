@@ -11,12 +11,20 @@ import {
   ADMIN_JS,
 } from './generated-assets.mjs';
 import { createHmac, createHash, randomUUID } from 'node:crypto';
+import {
+  buildSeoHead,
+  notFoundPage,
+  robotsTxt,
+  sitemapXml,
+  resolvePageMeta,
+} from './seo.mjs';
 
 const services = [
   { id: 'Dkasu Computer Arena', slug: 'computer-arena', eyebrow: 'COMPUTERS & ACCESSORIES', title: 'Computers for every next step.', summary: 'Shop brand new, UK used and Dubai used computers and accessories.', icon: 'monitor', status: 'Current', websiteUrl: 'https://computer.dkasu.com' },
   { id: 'DkasuPOS', slug: 'pos', eyebrow: 'BUSINESS SOFTWARE', title: 'Run your business with clarity.', summary: 'Point of sale and business management software.', icon: 'panels', status: 'Current', websiteUrl: 'https://pos.dkasu.com' },
   { id: 'DkasuLoyalty', slug: 'loyalty', eyebrow: 'BUSINESS SOFTWARE', title: 'Stay connected to your customers.', summary: 'Loyalty software for customer engagement.', icon: 'gift', status: 'Current', websiteUrl: 'https://loyalty.dkasu.com' },
-  { id: 'DkasuVision', slug: 'vision', eyebrow: 'CCTV SERVICES', title: 'A clearer view of what matters.', summary: 'CCTV installation services for homes and businesses.', icon: 'camera', status: 'Current', websiteUrl: 'https://vision.dkasu.com' },
+  // No independent website confirmed for Vision — omit websiteUrl until verified.
+  { id: 'DkasuVision', slug: 'vision', eyebrow: 'CCTV SERVICES', title: 'A clearer view of what matters.', summary: 'CCTV installation services for homes and businesses.', icon: 'camera', status: 'Current', websiteUrl: '' },
   { id: 'DkasuLogistic', slug: 'logistic', eyebrow: 'SHIPPING & LOGISTICS', title: 'Logistics that keeps business moving.', summary: 'DkasuLogistic provides shipping and logistics services.', icon: 'truck', status: 'In production' },
   { id: 'Dkasu Global', slug: 'global', eyebrow: 'STUDY & TRAVEL', title: 'Study and travel guidance for Europe.', summary: 'European study and travel consultancy. Overseas job placement is not offered.', icon: 'globe', status: 'Planning' },
   { id: 'Dkasu Digital', slug: 'digital', eyebrow: 'DIGITAL SERVICES', title: 'Websites and digital services.', summary: 'Website design, development and related digital services.', icon: 'code', status: 'Planning' },
@@ -25,22 +33,22 @@ const publicServiceIds = new Set(['Dkasu Computer Arena', 'DkasuPOS', 'DkasuLoya
 const defaults = {
   heroKicker: 'DKASU TECHNOLOGY & SERVICES',
   heroTitle: 'The right technology. A better way forward.',
-  heroText: 'Explore brand new, UK used and Dubai used computers and accessories, CCTV installation, business software and logistics from Dkasu in Italy and Uganda.',
+  heroText: 'DKASU provides POS software, computers, IT services and digital business solutions in Uganda, with a contact location in Rome, Italy. Explore our technology brands.',
   heroImage: '',
   aboutTitle: 'Technology for people and business.',
-  aboutText: 'Dkasu connects computer sales, CCTV installation, business software and shipping and logistics services. Our work spans Italy and Uganda, with each service focused on practical needs.',
+  aboutText: 'DKASU is the commercial brand of Waka Marketplace Limited. We connect computer sales, CCTV installation, business software and related services across Uganda and Italy.',
   contactTitle: 'What can we help you find?',
-  contactText: 'Tell us what you need and the Dkasu team can follow up.',
+  contactText: 'Tell us what you need and the DKASU team can follow up.',
   contactWhatsApp: '+256 765 146 177',
   contactWhatsAppLink: 'https://wa.me/message/5KOFXON5IJYMJ1',
   contactEmail: 'support@waka.ug',
   contactInternationalEmail: 'intl@dkasu.com',
   contactItalyPhone: '+39 353 207 6882',
   contactItalyAddress: 'Via Bernardino Alimena 31B, 00173 Roma (RM), Italy',
-  contactAddress: 'Namasuba, Entebbe Road, Kampala, Central Region, Uganda',
-  contactPostal: 'P.O. Box 209034, Namasuba, Kampala, Uganda',
+  contactAddress: 'Namasuba, Entebbe Road, Kampala, Uganda',
+  contactPostal: 'P.O. Box 209034, Namasuba, Entebbe Road, Kampala, Uganda',
   contactHours: 'Monday–Friday 8:00 AM–6:00 PM · Saturday 10:00 AM–4:00 PM · Sunday closed',
-  footerText: 'Dkasu is a business of WAKA Marketplace Limited.',
+  footerText: 'DKASU is the commercial brand of Waka Marketplace Limited.',
   linksVersion: 1,
   services: services.filter((s) => publicServiceIds.has(s.id)),
   sections: [],
@@ -86,16 +94,31 @@ const json = (body, status = 200, extraHeaders = {}) =>
     },
   });
 
-const htmlPage = (script) =>
-  `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${
-    script === 'admin' ? '<meta name="robots" content="noindex,nofollow">' : ''
-  }<meta name="theme-color" content="#fffaf5"><link rel="icon" href="${SITE_ICON}"><title>${
-    script === 'admin' ? 'Dkasu Admin' : 'Dkasu — Computers, Software & CCTV'
-  }</title><meta name="description" content="Explore brand new, UK used and Dubai used computers and accessories, CCTV installation and business software from Dkasu."><style>${SITE_CSS}</style></head><body><div id="app"></div><script>const SITE_LOGO_LIGHT=${JSON.stringify(
+const htmlPage = (script, { pathname = '/' } = {}) =>
+  `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${buildSeoHead(
+    { pathname, isAdmin: script === 'admin' },
+  )}<meta name="theme-color" content="#fffaf5"><link rel="icon" href="${SITE_ICON}"><style>${SITE_CSS}</style></head><body><div id="app"></div><script>const SITE_LOGO_LIGHT=${JSON.stringify(
     SITE_LOGO_LIGHT,
   )},SITE_LOGO_DARK=${JSON.stringify(SITE_LOGO_DARK)},SITE_ICON=${JSON.stringify(SITE_ICON)};${
     script === 'admin' ? ADMIN_JS : PUBLIC_JS
   }</script></body></html>`;
+
+const textResponse = (body, contentType, status = 200) =>
+  new Response(body, {
+    status,
+    headers: {
+      'content-type': contentType,
+      'cache-control': contentType.includes('xml') || contentType.includes('plain') ? 'public, max-age=300' : 'no-store',
+      ...SECURITY_HEADERS,
+    },
+  });
+
+const isPublicHtmlPath = (path) => {
+  if (path === '/' || path === '/products' || path === '/about' || path === '/contact') return true;
+  const match = path.match(/^\/services\/([a-z0-9-]+)$/);
+  if (!match) return false;
+  return services.some((s) => s.slug === match[1] && publicServiceIds.has(s.id));
+};
 
 const POS_COOKIE = 'dkasu_pos_admin';
 
@@ -321,13 +344,14 @@ const createInquiry = async (request, env, body, fetchImpl) => {
   }
 };
 
-const htmlResponse = (body, { admin = false } = {}) =>
+const htmlResponse = (body, { admin = false, status = 200 } = {}) =>
   new Response(body, {
+    status,
     headers: {
       'content-type': 'text/html; charset=utf-8',
       'cache-control': 'no-store',
       ...SECURITY_HEADERS,
-      ...(admin ? { 'x-robots-tag': 'noindex, nofollow' } : {}),
+      ...(admin || status === 404 ? { 'x-robots-tag': 'noindex, nofollow' } : {}),
     },
   });
 
@@ -349,8 +373,25 @@ export async function handleCompanyRequest(request, envInput = process.env, opti
   const url = new URL(request.url);
   const path = url.pathname;
 
-  if (path === '/' || path.startsWith('/services/') || path === '/products' || path === '/about' || path === '/contact') {
-    return htmlResponse(htmlPage('public'));
+  if (path === '/robots.txt' && request.method === 'GET') {
+    return textResponse(robotsTxt(), 'text/plain; charset=utf-8');
+  }
+  if (path === '/sitemap.xml' && request.method === 'GET') {
+    return textResponse(sitemapXml(), 'application/xml; charset=utf-8');
+  }
+
+  if (isPublicHtmlPath(path)) {
+    return htmlResponse(htmlPage('public', { pathname: path }));
+  }
+
+  if (path.startsWith('/services/') || (!path.startsWith('/api') && !path.startsWith('/admin') && request.method === 'GET')) {
+    // Unknown public paths: HTML 404 (do not leak API JSON to browsers / crawlers).
+    if (!path.startsWith('/api') && path !== '/favicon.ico') {
+      return htmlResponse(notFoundPage({ css: SITE_CSS, logoSrc: SITE_LOGO_LIGHT }), {
+        admin: true,
+        status: 404,
+      });
+    }
   }
 
   if (path === '/admin/pos-login' && request.method === 'POST') {
@@ -417,7 +458,29 @@ export async function handleCompanyRequest(request, envInput = process.env, opti
     return htmlResponse(htmlPage('admin'), { admin: true });
   }
 
-  if (!supabaseReady(env)) return json({ error: 'Supabase is not configured for this Site.' }, 500);
+  // Public readiness probe — boolean flags only, never secret values.
+  if (path === '/api/health' && request.method === 'GET') {
+    return json({
+      ok: supabaseReady(env) && hmacReady(env),
+      runtime: 'vercel',
+      backend: 'supabase',
+      supabaseConfigured: supabaseReady(env),
+      hmacConfigured: hmacReady(env),
+      d1UsedForBusiness: false,
+      rateLimitMode: 'database',
+    });
+  }
+
+  if (!supabaseReady(env)) {
+    return json(
+      {
+        error: 'Supabase is not configured for this Site.',
+        code: 'supabase_not_configured',
+        hint: 'Set POS_SUPABASE_URL and POS_SUPABASE_ANON_KEY on the Vercel project (Production and Preview), then redeploy.',
+      },
+      500,
+    );
+  }
 
   try {
     if (path === '/api/public' && request.method === 'GET') return json(await publicBootstrap(env, fetchImpl));
@@ -591,4 +654,6 @@ export const __test = {
   services,
   publicServiceIds,
   POS_COOKIE,
+  isPublicHtmlPath,
+  resolvePageMeta,
 };

@@ -111,3 +111,11 @@ body{font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
 .pos-chip{right:5%;bottom:10%;transform:rotate(5deg)}
 @media(max-width:950px){.spotlight-card{grid-template-columns:1fr}.spotlight-copy,.spotlight-pos .spotlight-copy{order:1}.spotlight-visual,.pos-visual{order:2;min-height:360px}.spotlight-card{min-height:0}.laptop-screen{height:235px}.laptop-base{top:calc(50% + 115px)}.pos-screen{height:270px}}
 @media(max-width:520px){.spotlight-section{padding:72px 20px}.spotlight-heading h2{font-size:37px}.spotlight-copy{padding:34px 25px}.spotlight-copy h3{font-size:45px}.spotlight-copy p{font-size:15px}.spotlight-visual{min-height:300px}.laptop-screen{height:180px;border-width:9px;border-bottom-width:15px}.laptop-base{top:calc(50% + 85px)}.screen-mark{font-size:29px}.screen-mark span{font-size:8px}.screen-caption{font-size:10px}.pos-screen{height:225px;width:85%;border-width:8px}.pos-content{padding:13px}.pos-stats span{height:35px}.pos-graph{height:65px}.visual-chip{font-size:10px}}
+
+/* Phase 1 company identity (SEO / About) — preserve existing visual language */
+.business-list{display:grid;gap:18px;margin-top:8px}
+.business-list article{border:1px solid #eedccf;border-radius:12px;padding:18px 20px;background:#fff}
+.business-list h3{font-size:18px;letter-spacing:-.03em;margin:0 0 8px}
+.business-list p{margin:0 0 8px;color:#655d57;font-size:14px;line-height:1.6}
+.business-list p:last-child{margin-bottom:0}
+.muted-note,.office-postal{color:#7a6d64;font-size:12px;line-height:1.55}

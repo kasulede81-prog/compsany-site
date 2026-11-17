@@ -67,7 +67,86 @@ await checkAsync('public HTML routes', async () => {
     assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
     const body = await res.text();
     assert.match(body, /id="app"/);
+    assert.match(body, /rel="canonical"/);
+    assert.match(body, /application\/ld\+json/);
+    assert.match(body, /og:title/);
+    assert.match(body, /twitter:card/);
+    assert.match(body, /lang="en"/);
   }
+});
+
+await checkAsync('homepage SEO title and organization graph', async () => {
+  const res = await handleCompanyRequest(new Request('https://www.dkasu.com/'), mockEnv, {
+    fetchImpl: async () => {
+      throw new Error('no supabase for html');
+    },
+  });
+  const body = await res.text();
+  assert.match(body, /<title>DKASU \| Business Software, Computers &amp; IT Solutions<\/title>|<title>DKASU \| Business Software, Computers & IT Solutions<\/title>/);
+  assert.match(body, /Waka Marketplace Limited/);
+  assert.match(body, /https:\/\/www\.dkasu\.com\/#organization/);
+  assert.match(body, /Denis Kasule/);
+  assert.match(body, /foundingDate":"2025-12"/);
+  assert.doesNotMatch(body, /vision\.dkasu\.com/);
+});
+
+await checkAsync('robots and sitemap', async () => {
+  const robots = await handleCompanyRequest(new Request('https://www.dkasu.com/robots.txt'), mockEnv);
+  assert.equal(robots.status, 200);
+  const robotsBody = await robots.text();
+  assert.match(robotsBody, /Sitemap: https:\/\/www\.dkasu\.com\/sitemap\.xml/);
+  assert.match(robotsBody, /Disallow: \/admin/);
+  assert.match(robotsBody, /Disallow: \/api/);
+  const sitemap = await handleCompanyRequest(new Request('https://www.dkasu.com/sitemap.xml'), mockEnv);
+  assert.equal(sitemap.status, 200);
+  const map = await sitemap.text();
+  assert.match(map, /<loc>https:\/\/www\.dkasu\.com\/<\/loc>/);
+  assert.match(map, /<loc>https:\/\/www\.dkasu\.com\/about<\/loc>/);
+  assert.match(map, /\/services\/pos<\/loc>/);
+  assert.doesNotMatch(map, /\/admin/);
+  assert.doesNotMatch(map, /\/api\//);
+});
+
+await checkAsync('unknown public path returns HTML 404', async () => {
+  const res = await handleCompanyRequest(new Request('https://www.dkasu.com/not-a-real-page'), mockEnv);
+  assert.equal(res.status, 404);
+  assert.match(res.headers.get('content-type') || '', /text\/html/);
+  assert.equal(res.headers.get('x-robots-tag'), 'noindex, nofollow');
+  const body = await res.text();
+  assert.match(body, /Page not found/);
+});
+
+check('public path helper rejects unknown service slug', () => {
+  assert.equal(__test.isPublicHtmlPath('/services/pos'), true);
+  assert.equal(__test.isPublicHtmlPath('/services/unknown-division'), false);
+  assert.ok(__test.resolvePageMeta('/about'));
+  assert.equal(__test.resolvePageMeta('/secret'), null);
+});
+
+await checkAsync('www canonical consistency across SEO surfaces', async () => {
+  const { SITE_ORIGIN, sitemapXml, robotsTxt, organizationGraph, BRAND } = await import('../server/seo.mjs');
+  assert.equal(SITE_ORIGIN, 'https://www.dkasu.com');
+  assert.equal(BRAND.ogImageStatus, 'pending_1200x630');
+  assert.deepEqual(BRAND.founderSameAs, ['https://www.linkedin.com/in/kasule-denis-6395b3373']);
+  assert.equal(BRAND.italy.formatted, 'Via Bernardino Alimena 31B, 00173 Roma (RM), Italy');
+  const map = sitemapXml();
+  assert.match(map, /https:\/\/www\.dkasu\.com\//);
+  assert.doesNotMatch(map, /<loc>https:\/\/dkasu\.com\//);
+  assert.doesNotMatch(map, /market\.dkasu\.com|vision\.dkasu\.com/);
+  assert.match(robotsTxt(), /Sitemap: https:\/\/www\.dkasu\.com\/sitemap\.xml/);
+  const graph = JSON.stringify(organizationGraph());
+  assert.match(graph, /https:\/\/www\.dkasu\.com\/#organization/);
+  assert.match(graph, /kasule-denis-6395b3373/);
+  assert.doesNotMatch(graph, /facebook\.com|instagram\.com|twitter\.com|x\.com/);
+  const vercel = await import('node:fs').then((fs) =>
+    JSON.parse(fs.readFileSync(new URL('../vercel.json', import.meta.url), 'utf8')),
+  );
+  const apexRedirect = (vercel.redirects || []).find(
+    (r) => Array.isArray(r.has) && r.has.some((h) => h.value === 'dkasu.com'),
+  );
+  assert.ok(apexRedirect);
+  assert.equal(apexRedirect.destination, 'https://www.dkasu.com/:path*');
+  assert.equal(apexRedirect.permanent, true);
 });
 
 await checkAsync('GET /api/public uses bootstrap RPC', async () => {
@@ -255,6 +334,25 @@ await checkAsync('ChatGPT ADMIN_EMAIL alone cannot mutate', async () => {
 await checkAsync('missing supabase config', async () => {
   const res = await handleCompanyRequest(new Request('https://site.test/api/public'), {});
   assert.equal(res.status, 500);
+  const body = await res.json();
+  assert.equal(body.code, 'supabase_not_configured');
+  assert.ok(!JSON.stringify(body).includes('eyJ'));
+});
+
+await checkAsync('public /api/health flags without secrets', async () => {
+  const res = await handleCompanyRequest(new Request('https://site.test/api/health'), {});
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.supabaseConfigured, false);
+  assert.equal(data.hmacConfigured, false);
+  assert.equal(data.ok, false);
+  assert.equal(data.runtime, 'vercel');
+  const withEnv = await handleCompanyRequest(new Request('https://site.test/api/health'), mockEnv);
+  const ready = await withEnv.json();
+  assert.equal(ready.supabaseConfigured, true);
+  assert.equal(ready.hmacConfigured, true);
+  assert.equal(ready.ok, true);
+  assert.ok(!JSON.stringify(ready).includes(mockEnv.COMPANY_INQUIRY_HMAC_SECRET));
 });
 
 await checkAsync('rpc helper rejects non-https', async () => {

@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     ".sites-runtime/**",
     "outputs/**",
     "work/**",
+    // Next app/ is a private workspace shell; production company site is server/ + worker/.
+    "app/**",
+    // Cloudflare reference bundle (not the Vercel runtime path).
+    "worker/core.js",
   ]),
   {
     files: ["components/ui/**/*.{ts,tsx}", "hooks/use-mobile.ts"],
