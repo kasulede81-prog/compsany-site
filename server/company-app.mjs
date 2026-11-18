@@ -18,6 +18,11 @@ import {
   sitemapXml,
   resolvePageMeta,
 } from './seo.mjs';
+import {
+  isWhatsAppShortLink,
+  normalizeWhatsAppDigits,
+  WHATSAPP_DEFAULT_DIGITS,
+} from '../lib/whatsapp.mjs';
 
 const services = [
   { id: 'Dkasu Computer Arena', slug: 'computer-arena', eyebrow: 'COMPUTERS & ACCESSORIES', title: 'Computers for every next step.', summary: 'Shop refurbished and new laptops, desktops and computer accessories through DKASU Computer Arena.', icon: 'monitor', status: 'Current', websiteUrl: 'https://computer.dkasu.com' },
@@ -538,7 +543,11 @@ export async function handleCompanyRequest(request, envInput = process.env, opti
         for (const key of siteFieldKeys) next[key] = String(body[key] ?? defaults[key]).slice(0, 2000);
         next.linksVersion = 1;
         if (!validUrl(next.heroImage)) next.heroImage = '';
-        if (!/^https:\/\/wa\.me\/message\/[A-Za-z0-9]+$/.test(next.contactWhatsAppLink)) next.contactWhatsAppLink = '';
+        if (!isWhatsAppShortLink(next.contactWhatsAppLink)) next.contactWhatsAppLink = '';
+        {
+          const rawDigits = String(next.contactWhatsApp || '').replace(/\D/g, '');
+          if (rawDigits.length < 10 || rawDigits.length > 15) next.contactWhatsApp = defaults.contactWhatsApp;
+        }
         const result = await rpc(env, { name: 'company_admin_upsert_site_content', args: { p_value: next }, token, fetchImpl });
         if (!result?.ok) return json({ error: result?.error || 'Could not save content' }, 400);
         return json({ ok: true });
@@ -656,4 +665,7 @@ export const __test = {
   POS_COOKIE,
   isPublicHtmlPath,
   resolvePageMeta,
+  isWhatsAppShortLink,
+  normalizeWhatsAppDigits,
+  WHATSAPP_DEFAULT_DIGITS,
 };

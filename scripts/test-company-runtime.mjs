@@ -7,6 +7,18 @@
 import assert from 'node:assert/strict';
 import { createHmac, createHash, randomUUID } from 'node:crypto';
 import { handleCompanyRequest, __test, rpc } from '../server/company-app.mjs';
+import {
+  WHATSAPP_DEFAULT_DIGITS,
+  buildPrefillMessage,
+  buildWhatsAppUrl,
+  isWhatsAppShortLink,
+  normalizeWhatsAppDigits,
+  resolveDivisionKey,
+  sanitizePageUrl,
+} from '../lib/whatsapp.mjs';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
 const results = [];
 const check = (name, fn) => {
@@ -123,6 +135,113 @@ check('public path helper rejects unknown service slug', () => {
   assert.equal(__test.isPublicHtmlPath('/services/unknown-division'), false);
   assert.ok(__test.resolvePageMeta('/about'));
   assert.equal(__test.resolvePageMeta('/secret'), null);
+});
+
+check('whatsapp default digits and CMS number normalization', () => {
+  assert.equal(WHATSAPP_DEFAULT_DIGITS, '256765146177');
+  assert.equal(normalizeWhatsAppDigits('+256 765 146 177'), '256765146177');
+  assert.equal(normalizeWhatsAppDigits('256765146177'), '256765146177');
+  assert.equal(normalizeWhatsAppDigits('+1 (415) 555-0100'), '14155550100');
+  assert.equal(normalizeWhatsAppDigits(''), WHATSAPP_DEFAULT_DIGITS);
+  assert.equal(normalizeWhatsAppDigits('abc'), WHATSAPP_DEFAULT_DIGITS);
+  assert.equal(normalizeWhatsAppDigits('12345'), WHATSAPP_DEFAULT_DIGITS);
+  assert.equal(normalizeWhatsAppDigits('++--', '256700000000'), '256700000000');
+  assert.equal(__test.normalizeWhatsAppDigits('+256765146177'), '256765146177');
+});
+
+check('whatsapp short link validation', () => {
+  assert.equal(isWhatsAppShortLink('https://wa.me/message/5KOFXON5IJYMJ1'), true);
+  assert.equal(isWhatsAppShortLink('https://wa.me/256765146177'), false);
+  assert.equal(isWhatsAppShortLink('http://wa.me/message/5KOFXON5IJYMJ1'), false);
+  assert.equal(isWhatsAppShortLink('https://evil.example/message/5KOFXON5IJYMJ1'), false);
+  assert.equal(isWhatsAppShortLink(''), false);
+  assert.equal(__test.isWhatsAppShortLink('https://wa.me/message/ABC123'), true);
+});
+
+check('whatsapp division routing keys', () => {
+  assert.equal(resolveDivisionKey('DkasuPOS'), 'pos');
+  assert.equal(resolveDivisionKey('pos'), 'pos');
+  assert.equal(resolveDivisionKey('Dkasu Computer Arena'), 'computer');
+  assert.equal(resolveDivisionKey('computer-arena'), 'computer');
+  assert.equal(resolveDivisionKey('DkasuLoyalty'), 'loyalty');
+  assert.equal(resolveDivisionKey('DkasuVision'), 'vision');
+  assert.equal(resolveDivisionKey('DkasuLogistic'), 'logistic');
+  assert.equal(resolveDivisionKey('Dkasu Digital'), 'digital');
+  assert.equal(resolveDivisionKey('DKASU services'), 'general');
+  assert.equal(resolveDivisionKey(''), 'general');
+});
+
+check('whatsapp contextual messages preserve division and product context', () => {
+  const short = 'https://wa.me/message/5KOFXON5IJYMJ1';
+  const cfg = {
+    contactWhatsApp: '+256 765 146 177',
+    contactWhatsAppLink: short,
+  };
+
+  const generic = buildWhatsAppUrl({ ...cfg, mode: 'generic', division: 'general' });
+  assert.equal(generic, short);
+
+  const pos = buildWhatsAppUrl({ ...cfg, mode: 'contextual', division: 'DkasuPOS' });
+  assert.match(pos, /^https:\/\/wa\.me\/256765146177\?text=/);
+  assert.match(decodeURIComponent(pos.split('text=')[1]), /DKASU POS/);
+  assert.doesNotMatch(pos, /wa\.me\/message\//);
+
+  const computer = buildWhatsAppUrl({
+    ...cfg,
+    mode: 'contextual',
+    division: 'Dkasu Computer Arena',
+    pageUrl: 'https://www.dkasu.com/services/computer-arena?utm=1',
+  });
+  const computerText = decodeURIComponent(computer.split('text=')[1]);
+  assert.match(computerText, /Computer Arena|computers and accessories/i);
+  assert.match(computerText, /Ref: https:\/\/www\.dkasu\.com\/services\/computer-arena/);
+  assert.doesNotMatch(computerText, /utm=/);
+
+  const product = buildWhatsAppUrl({
+    ...cfg,
+    mode: 'contextual',
+    division: 'Dkasu Computer Arena',
+    productName: 'Dell Latitude 5420',
+    pageUrl: 'https://computer.dkasu.com/laptops/dell-latitude-5420',
+  });
+  const productText = decodeURIComponent(product.split('text=')[1]);
+  assert.match(productText, /Dell Latitude 5420/);
+  assert.match(productText, /Ref: https:\/\/computer\.dkasu\.com\/laptops\/dell-latitude-5420/);
+  assert.doesNotMatch(productText, /@|customer|password|token/i);
+
+  const digital = buildWhatsAppUrl({ ...cfg, mode: 'contextual', division: 'Dkasu Digital' });
+  assert.match(decodeURIComponent(digital.split('text=')[1]), /Digital/);
+
+  const noShort = buildWhatsAppUrl({
+    contactWhatsApp: '+256 765 146 177',
+    contactWhatsAppLink: 'not-a-short-link',
+    mode: 'generic',
+    division: 'general',
+  });
+  assert.match(noShort, /^https:\/\/wa\.me\/256765146177\?text=/);
+
+  const cmsAlt = buildWhatsAppUrl({
+    contactWhatsApp: '+256700111222',
+    contactWhatsAppLink: short,
+    mode: 'contextual',
+    division: 'loyalty',
+  });
+  assert.match(cmsAlt, /^https:\/\/wa\.me\/256700111222\?text=/);
+
+  assert.equal(sanitizePageUrl('https://evil.com/phish'), '');
+  assert.equal(sanitizePageUrl('/services/pos?interest=x'), '/services/pos');
+  assert.match(buildPrefillMessage({ division: 'vision' }), /CCTV/);
+});
+
+check('whatsapp helper is embedded in generated public assets', () => {
+  const root = path.dirname(fileURLToPath(import.meta.url));
+  const generated = readFileSync(path.join(root, '../server/generated-assets.mjs'), 'utf8');
+  assert.match(generated, /function buildWhatsAppUrl/);
+  assert.match(generated, /waGeneric/);
+  assert.match(generated, /waDivision/);
+  assert.match(generated, /waProduct/);
+  assert.match(generated, /256765146177/);
+  assert.doesNotMatch(generated, /Hello Dkasu, I would like to ask about \$\{subject\}/);
 });
 
 await checkAsync('www canonical consistency across SEO surfaces', async () => {

@@ -223,6 +223,7 @@ export default {async fetch(request,env){
     next.linksVersion=1;
     if(!validUrl(next.heroImage))next.heroImage='';
     if(!/^https:\/\/wa\.me\/message\/[A-Za-z0-9]+$/.test(next.contactWhatsAppLink))next.contactWhatsAppLink='';
+    {const rawDigits=String(next.contactWhatsApp||'').replace(/\D/g,'');if(rawDigits.length<10||rawDigits.length>15)next.contactWhatsApp=defaults.contactWhatsApp;}
     const result=await rpc(env,{name:'company_admin_upsert_site_content',args:{p_value:next},token});
     if(!result?.ok)return json({error:result?.error||'Could not save content'},400);
     return json({ok:true});

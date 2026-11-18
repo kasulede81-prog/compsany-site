@@ -7,7 +7,11 @@ import path from 'node:path';
 
 const root = process.cwd();
 const css = readFileSync(path.join(root, 'worker/ui/style.css'), 'utf8');
-const publicJs = readFileSync(path.join(root, 'worker/ui/public.js'), 'utf8');
+/** Strip ESM exports so lib/whatsapp.mjs can run inside the public <script> bundle. */
+const whatsappJs = readFileSync(path.join(root, 'lib/whatsapp.mjs'), 'utf8')
+  .replace(/^export\s+/gm, '')
+  .trim();
+const publicJs = `${whatsappJs}\n${readFileSync(path.join(root, 'worker/ui/public.js'), 'utf8')}`;
 const adminJs = readFileSync(path.join(root, 'worker/ui/admin.js'), 'utf8');
 const asset = (name) =>
   `data:image/png;base64,${readFileSync(path.join(root, 'worker/assets', name)).toString('base64')}`;
