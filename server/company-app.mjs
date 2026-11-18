@@ -45,7 +45,7 @@ const defaults = {
   contactTitle: 'What can we help you find?',
   contactText: 'Tell us what you need and the DKASU team can follow up.',
   contactWhatsApp: '+256 765 146 177',
-  contactWhatsAppLink: 'https://wa.me/message/5KOFXON5IJYMJ1',
+  contactWhatsAppLink: '',
   contactEmail: 'support@waka.ug',
   contactInternationalEmail: 'intl@dkasu.com',
   contactItalyPhone: '+39 353 207 6882',

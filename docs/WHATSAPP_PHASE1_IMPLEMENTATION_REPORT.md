@@ -12,11 +12,11 @@ Phase 1 centralizes WhatsApp URL generation, restores division/product prefilled
 
 | CTA surface | Mode | URL style |
 | --- | --- | --- |
-| Header “WhatsApp us” | generic | CMS short link when valid |
-| Footer WhatsApp | generic | CMS short link when valid |
-| Floating button | generic | CMS short link when valid |
-| Home “WhatsApp {number}” connect band | generic | CMS short link when valid |
-| Contact page (no `?interest=`) | generic | CMS short link when valid |
+| Header “WhatsApp us” | generic | `wa.me/{digits}?text=Hello DKASU, I need assistance.` |
+| Footer WhatsApp | generic | same direct-number generic text |
+| Floating button | generic | same direct-number generic text |
+| Home “WhatsApp {number}” connect band | generic | same direct-number generic text |
+| Contact page (no `?interest=`) | generic | same direct-number generic text |
 | Contact page (`?interest=…`) | contextual | `wa.me/{digits}?text=…` |
 | Service pages | contextual | division prefill + page ref |
 | Products directory cards | contextual | division prefill + page ref |
@@ -24,8 +24,13 @@ Phase 1 centralizes WhatsApp URL generation, restores division/product prefilled
 
 - Default number digits: `256765146177` (`+256 765 146 177`)
 - CMS `contactWhatsApp` is respected when it normalizes to 10–15 digits
+- Legacy CMS `contactWhatsAppLink` (`wa.me/message/…`) is **ignored** for all public CTAs (broken short link retired)
 - Prefills never include customer PII; page refs strip query/hash and reject non-DKASU hosts
 - Planning divisions (Global/Digital) have message templates available but no new public routes
+
+### Urgent short-link fix (follow-up)
+
+Manual browser testing found `https://wa.me/message/5KOFXON5IJYMJ1` returns “Link no longer valid.” Public URL generation no longer returns any `wa.me/message/` URL.
 
 ## Modified files
 

@@ -9,6 +9,7 @@ import { createHmac, createHash, randomUUID } from 'node:crypto';
 import { handleCompanyRequest, __test, rpc } from '../server/company-app.mjs';
 import {
   WHATSAPP_DEFAULT_DIGITS,
+  WHATSAPP_GENERIC_MESSAGE,
   buildPrefillMessage,
   buildWhatsAppUrl,
   isWhatsAppShortLink,
@@ -171,15 +172,21 @@ check('whatsapp division routing keys', () => {
   assert.equal(resolveDivisionKey(''), 'general');
 });
 
-check('whatsapp contextual messages preserve division and product context', () => {
-  const short = 'https://wa.me/message/5KOFXON5IJYMJ1';
+check('whatsapp public CTAs never use wa.me/message short links', () => {
+  const brokenShort = 'https://wa.me/message/5KOFXON5IJYMJ1';
   const cfg = {
     contactWhatsApp: '+256 765 146 177',
-    contactWhatsAppLink: short,
+    contactWhatsAppLink: brokenShort,
   };
 
+  const expectedGeneric =
+    `https://wa.me/256765146177?text=${encodeURIComponent(WHATSAPP_GENERIC_MESSAGE)}`;
+  assert.equal(WHATSAPP_GENERIC_MESSAGE, 'Hello DKASU, I need assistance.');
+
   const generic = buildWhatsAppUrl({ ...cfg, mode: 'generic', division: 'general' });
-  assert.equal(generic, short);
+  assert.equal(generic, expectedGeneric);
+  assert.doesNotMatch(generic, /wa\.me\/message\//);
+  assert.notEqual(generic, brokenShort);
 
   const pos = buildWhatsAppUrl({ ...cfg, mode: 'contextual', division: 'DkasuPOS' });
   assert.match(pos, /^https:\/\/wa\.me\/256765146177\?text=/);
@@ -196,6 +203,7 @@ check('whatsapp contextual messages preserve division and product context', () =
   assert.match(computerText, /Computer Arena|computers and accessories/i);
   assert.match(computerText, /Ref: https:\/\/www\.dkasu\.com\/services\/computer-arena/);
   assert.doesNotMatch(computerText, /utm=/);
+  assert.doesNotMatch(computer, /wa\.me\/message\//);
 
   const product = buildWhatsAppUrl({
     ...cfg,
@@ -208,25 +216,27 @@ check('whatsapp contextual messages preserve division and product context', () =
   assert.match(productText, /Dell Latitude 5420/);
   assert.match(productText, /Ref: https:\/\/computer\.dkasu\.com\/laptops\/dell-latitude-5420/);
   assert.doesNotMatch(productText, /@|customer|password|token/i);
+  assert.doesNotMatch(product, /wa\.me\/message\//);
 
   const digital = buildWhatsAppUrl({ ...cfg, mode: 'contextual', division: 'Dkasu Digital' });
   assert.match(decodeURIComponent(digital.split('text=')[1]), /Digital/);
-
-  const noShort = buildWhatsAppUrl({
-    contactWhatsApp: '+256 765 146 177',
-    contactWhatsAppLink: 'not-a-short-link',
-    mode: 'generic',
-    division: 'general',
-  });
-  assert.match(noShort, /^https:\/\/wa\.me\/256765146177\?text=/);
+  assert.doesNotMatch(digital, /wa\.me\/message\//);
 
   const cmsAlt = buildWhatsAppUrl({
     contactWhatsApp: '+256700111222',
-    contactWhatsAppLink: short,
-    mode: 'contextual',
-    division: 'loyalty',
+    contactWhatsAppLink: brokenShort,
+    mode: 'generic',
   });
-  assert.match(cmsAlt, /^https:\/\/wa\.me\/256700111222\?text=/);
+  assert.equal(
+    cmsAlt,
+    `https://wa.me/256700111222?text=${encodeURIComponent(WHATSAPP_GENERIC_MESSAGE)}`,
+  );
+
+  const samples = [generic, pos, computer, product, digital, cmsAlt];
+  for (const url of samples) {
+    assert.doesNotMatch(url, /wa\.me\/message\//);
+    assert.match(url, /^https:\/\/wa\.me\/\d+\?text=/);
+  }
 
   assert.equal(sanitizePageUrl('https://evil.com/phish'), '');
   assert.equal(sanitizePageUrl('/services/pos?interest=x'), '/services/pos');
@@ -241,7 +251,12 @@ check('whatsapp helper is embedded in generated public assets', () => {
   assert.match(generated, /waDivision/);
   assert.match(generated, /waProduct/);
   assert.match(generated, /256765146177/);
+  assert.match(generated, /Hello DKASU, I need assistance\./);
   assert.doesNotMatch(generated, /Hello Dkasu, I would like to ask about \$\{subject\}/);
+  // Defaults / fallbacks must not plant the retired Business short link.
+  assert.doesNotMatch(generated, /5KOFXON5IJYMJ1/);
+  // Public URL builder must ignore legacy short links even if CMS still stores one.
+  assert.match(generated, /_legacyShortLinkIgnored|ignored for URL generation|never use wa\.me\/message/i);
 });
 
 await checkAsync('www canonical consistency across SEO surfaces', async () => {
